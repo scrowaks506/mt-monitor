@@ -1,0 +1,34 @@
+services:
+  mtmon:
+    build: .
+    image: mtmon:latest
+    container_name: mtmon
+    restart: unless-stopped
+    ports:
+      - "${MTMON_PORT:-8080}:8080"
+    environment:
+      MTMON_HOST: 0.0.0.0
+      MTMON_PORT: 8080
+      MTMON_DB_PATH: /app/data/mtmon.sqlite
+      MTMON_SECRET_KEY: ${MTMON_SECRET_KEY}       # REQUIRED — generate on each host
+      MTMON_ADMIN_TOKEN: ${MTMON_ADMIN_TOKEN:-}
+      MTMON_AGENT_KEYS: ${MTMON_AGENT_KEYS:-}
+      MTMON_AGENT_REGISTRATION: ${MTMON_AGENT_REGISTRATION:-on}  # off = agents must be registered first
+      # TLS: strongly recommended when the server is internet-reachable.
+      # With no domain, MTMON_TLS=on generates a self-signed cert automatically.
+      MTMON_TLS: ${MTMON_TLS:-on}
+      MTMON_TLS_NAMES: ${MTMON_TLS_NAMES:-localhost,127.0.0.1}
+      MTMON_TELEGRAM_BOT_TOKEN: ${MTMON_TELEGRAM_TOKEN:-}
+    volumes:
+      - mtmon-data:/app/data
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=5)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  mtmon-data:

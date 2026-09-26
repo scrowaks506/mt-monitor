@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mtmon — ops console</title>
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#101318; --panel2:#14181f; --line:#1e242d;
+    --line2:#2b323d; --txt:#d3dae2; --dim:#8b949e; --faint:#5b636d;
+    --accent:#4f8ef7; --accent-dim:#1d2c45;
+    --ok:#3fb950; --warn:#d29922; --crit:#f85149;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --sans:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font:13px/1.45 var(--sans);
+       -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .num{font-family:var(--mono)}
+
+  #app{display:grid;grid-template-columns:212px 1fr;min-height:100vh}
+  aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .brand{display:flex;align-items:center;gap:9px;padding:15px 16px 13px}
+  .brand .logo{width:24px;height:24px;border-radius:6px;background:var(--accent);
+               display:flex;align-items:center;justify-content:center;color:#0a0c10;font-weight:700;font-size:12px}
+  .brand b{font-size:13px;letter-spacing:.3px}
+  .brand small{display:block;font-size:10px;color:var(--faint);letter-spacing:.6px}
+  nav{padding:8px;display:flex;flex-direction:column;gap:1px}
+  .nav-label{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.8px;padding:12px 8px 5px}
+  .nav{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;
+       color:var(--dim);font-size:12.5px;cursor:pointer}
+  .nav:hover{background:var(--panel2);color:var(--txt)}
+  .nav.on{background:var(--accent-dim);color:#e6edf3}
+  .nav .ic{width:15px;text-align:center;opacity:.75;font-size:11px;color:var(--dim)}
+  .nav.on .ic{color:var(--accent)}
+  .side-foot{margin-top:auto;padding:12px 14px;border-top:1px solid var(--line)}
+  .side-foot .k{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.6px}
+  .side-foot .v{font:12px var(--mono);color:var(--dim);margin-bottom:6px}
+
+  main{display:flex;flex-direction:column;min-width:0}
+  header{height:48px;display:flex;align-items:center;gap:12px;padding:0 16px;
+         border-bottom:1px solid var(--line);background:var(--panel);flex:none}
+  .crumb{font-size:12px;color:var(--dim)}
+  .crumb b{color:var(--txt);font-weight:600}
+  .search{margin-left:auto;display:flex;align-items:center;gap:7px;background:var(--bg);
+          border:1px solid var(--line);border-radius:6px;padding:5px 10px;width:210px}
+  .search input{background:none;border:0;outline:0;color:var(--txt);font-size:12px;width:100%}
+  .search input::placeholder{color:var(--faint)}
+  .kbd{font:10px var(--mono);border:1px solid var(--line2);border-radius:4px;padding:1px 5px;color:var(--faint)}
+  .who{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+  .avatar{width:24px;height:24px;border-radius:50%;background:#2d333b;display:flex;align-items:center;
+          justify-content:center;font-size:10px;color:var(--txt);font-weight:600}
+  .live-pill{display:flex;align-items:center;gap:6px;font:11px var(--mono);color:var(--ok);
+             border:1px solid #1d3a24;border-radius:12px;padding:3px 9px;background:#0f1a11}
+  .live-pill i{width:6px;height:6px;border-radius:50%;background:var(--ok);display:block}
+
+  #content{padding:14px 16px 20px;display:flex;flex-direction:column;gap:13px;flex:1}
+
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .kpi .l{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.7px;display:flex;justify-content:space-between}
+  .kpi .v{font:600 20px/1.2 var(--mono);margin-top:4px}
+  .kpi .d{font-size:10.5px;color:var(--dim);margin-top:1px}
+  .kpi .v.ok{color:var(--ok)} .kpi .v.crit{color:var(--crit)} .kpi .v.warn{color:var(--warn)}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:22px;margin-top:6px}
+  .spark i{flex:1;background:var(--accent-dim);border-radius:1px;min-height:2px}
+
+  .row{display:grid;gap:13px;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);align-items:start}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-width:0}
+  .phead{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);height:38px;flex:none}
+  .phead h{font-size:11.5px;font-weight:600;letter-spacing:.4px;color:var(--txt)}
+  .phead .tab{font-size:10.5px;color:var(--faint);font-family:var(--mono)}
+  .phead .right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .chip{font:10.5px var(--sans);border:1px solid var(--line2);border-radius:11px;padding:2px 9px;color:var(--dim);cursor:pointer}
+  .chip.on{color:var(--accent);border-color:var(--accent-dim);background:#101a2c}
+
+  .screen-wrap{position:relative;background:#000;line-height:0;min-height:300px;
+               display:flex;align-items:center;justify-content:center}
+  .screen{width:100%;display:block;height:auto;min-height:300px}
+  .screen.ph{min-height:300px}
+  .osd{position:absolute;bottom:8px;left:10px;font:10px var(--mono);color:#b9c8de;
+       background:rgba(8,10,14,.78);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:2px 7px;line-height:1.4}
+  .osd.r{left:auto;right:10px;color:#ff8b80;border-color:rgba(248,81,73,.4)}
+  .scr-bar{display:flex;gap:6px;padding:7px 10px;border-top:1px solid var(--line);background:var(--panel2);flex-wrap:wrap}
+  .btn{font:11px var(--sans);border:1px solid var(--line2);border-radius:6px;padding:4px 11px;
+       color:var(--dim);background:var(--panel);cursor:pointer;display:flex;align-items:center;gap:6px}
+  .btn:hover{color:var(--txt);border-color:#3d4653}
+  .btn.primary{color:#dfe9fb;border-color:var(--accent-dim);background:#14233d}
+  .btn.danger{color:#ffb3ad;border-color:#5c2522;background:#2a1517}
+  .scr-select{background:var(--bg);color:var(--txt);border:1px solid var(--line2);border-radius:6px;
+              padding:3px 8px;font:11px var(--sans);outline:0}
+
+  .feed{overflow:auto;padding:4px 0;max-height:280px}
+  .ev{display:grid;grid-template-columns:56px 1fr;gap:9px;align-items:baseline;
+      padding:5px 12px;font-size:11.5px;border-left:2px solid transparent}
+  .ev:hover{background:var(--panel2)}
+  .ev .t{font:10.5px var(--mono);color:var(--faint)}
+  .ev .a{font:10.5px var(--mono);color:var(--accent)}
+  .ev .m{color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ev.dot-alert{border-left-color:var(--crit)} .ev.dot-alert .m{color:#ffb3ad}
+  .ev.dot-warn{border-left-color:var(--warn)}  .ev.dot-warn .m{color:#f0d78a}
+  .ev.dot-ok{border-left-color:var(--ok)}     .ev.dot-ok .m{color:#9fe6ad}
+  .ev.dot-ctrl{border-left-color:var(--accent)}.ev.dot-ctrl .m{color:#a9c6f5}
+
+  .ctrl{padding:10px 12px;display:flex;flex-direction:column;gap:7px}
+  .target{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--dim)}
+  .target select{background:var(--bg);color:var(--txt);border:1px solid var(--line2);border-radius:6px;
+                 padding:4px 8px;font-size:11.5px;outline:0;max-width:170px}
+  .act{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);
+       border-radius:7px;background:var(--panel2);cursor:pointer}
+  .act:hover{border-color:#3d4653}
+  .act .bar{width:3px;align-self:stretch;border-radius:2px}
+  .act .nm{font-size:12px;color:var(--txt)}
+  .act .ds{font-size:10.5px;color:var(--dim)}
+  .act .go{margin-left:auto;color:var(--faint);font-size:12px}
+  .warnbox{border:1px solid #5c2522;background:#221414;border-radius:7px;padding:8px 10px;
+           font-size:10.5px;color:#ffb3ad;display:flex;gap:8px;align-items:center}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{font:10px var(--sans);text-transform:uppercase;letter-spacing:.7px;color:var(--faint);
+           text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tbody td{padding:7px 12px;font-size:12px;border-bottom:1px solid #161b22;white-space:nowrap}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--panel2)}
+  tbody tr.sel{background:#101a2c}
+  td.n{font-family:var(--mono);color:var(--txt)}
+  .st{display:inline-flex;align-items:center;gap:6px;font-size:11.5px}
+  .st i{width:7px;height:7px;border-radius:50%;display:block}
+  .st.ok i{background:var(--ok)} .st.crit i{background:var(--crit);animation:pulse 1.1s infinite}
+  @keyframes pulse{50%{opacity:.3}}
+  .st.ok{color:var(--ok)} .st.crit{color:var(--crit)}
+  .mtag{font:10px var(--mono);border:1px solid var(--line2);border-radius:4px;padding:0 5px;color:var(--dim)}
+  .mtag.bad{color:#ffb3ad;border-color:#5c2522}
+  .mini{width:74px;height:5px;background:#1a1f27;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:5px}
+  .mini i{display:block;height:100%;border-radius:3px}
+  .foot-note{padding:7px 12px;font-size:10.5px;color:var(--faint);border-top:1px solid var(--line);
+             display:flex;gap:14px;flex-wrap:wrap}
+
+  .modal{position:fixed;inset:0;background:rgba(4,6,9,.72);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal.on{display:flex}
+  .modal .box{background:var(--panel);border:1px solid var(--line2);border-radius:10px;width:400px;padding:20px}
+  .modal h3{font-size:15px;margin-bottom:6px}
+  .modal p{font-size:12px;color:var(--dim);margin-bottom:14px}
+  .modal .cmdline{background:var(--bg);border:1px solid var(--line);border-radius:6px;
+                  font:12px var(--mono);padding:8px 10px;color:#f0d78a;margin-bottom:14px;
+                  word-break:break-all;white-space:pre-wrap}
+  .modal .row2{display:flex;gap:8px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <div class="brand">
+      <div class="logo">MT</div>
+      <div><b>mtmon</b><small>OPS CONSOLE</small></div>
+    </div>
+    <nav>
+      <div class="nav-label">Workspace</div>
+      <div class="nav on"><span class="ic">▦</span> Monitoring</div>
+      <div class="nav"><span class="ic">▣</span> Terminals</div>
+      <div class="nav"><span class="ic">≡</span> Activity</div>
+      <div class="nav"><span class="ic">◧</span> Control</div>
+      <div class="nav-label">System</div>
+      <div class="nav"><span class="ic">●</span> Alerting</div>
+      <div class="nav"><span class="ic">◆</span> Settings</div>
+    </nav>
+    <div class="side-foot">
+      <div class="k">Retention</div>
+      <div class="v">30d · sqlite</div>
+      <div class="k">Build</div>
+      <div class="v">1.0.0 · self-hosted</div>
+    </div>
+  </aside>
+
+  <main>
+    <header>
+      <div class="crumb">Workspace / <b>Monitoring</b></div>
+      <div class="live-pill"><i></i> LIVE · <span id="lastupd">—</span></div>
+      <div class="search">
+        <span style="color:var(--faint);font-size:11px">▸</span>
+        <input id="filter" placeholder="filter agent / akun…"><span class="kbd">/</span>
+      </div>
+      <div class="who"><div class="avatar">T</div> operator</div>
+    </header>
+
+    <div id="content">
+      <div class="kpis">
+        <div class="kpi"><div class="l">Agents online <span id="kpiTot">/ 0</span></div>
+          <div class="v ok" id="kpiOnline">0</div><div class="d" id="kpiOfflineD">—</div></div>
+        <div class="kpi"><div class="l">Terminal MT</div>
+          <div class="v" id="kpiMt">0</div><div class="d" id="kpiMtD">—</div></div>
+        <div class="kpi"><div class="l">Rata-rata CPU</div>
+          <div class="v warn" id="kpiCpu">—</div><div class="d" id="kpiCpuD">—</div>
+          <div class="spark" id="kpiSpark"></div></div>
+        <div class="kpi"><div class="l">Offline terlama</div>
+          <div class="v" id="kpiStale">—</div><div class="d">gate 90s</div></div>
+        <div class="kpi"><div class="l">Margin risk</div>
+          <div class="v" id="kpiMargin">—</div><div class="d" id="kpiMarginD">—</div></div>
+      </div>
+
+      <div class="row">
+        <div class="panel">
+          <div class="phead">
+            <h>LIVE SCREEN</h><span class="tab" id="screenTab">—</span>
+            <div class="right">
+              <select class="scr-select" id="screenSel"></select>
+              <span class="chip">view</span><span class="chip">control</span>
+            </div>
+          </div>
+          <div class="screen-wrap">
+            <img class="screen" id="screenImg" alt="rdp screen">
+            <div class="osd" id="osdL">no frame yet</div>
+            <div class="osd r" id="osdR"></div>
+          </div>
+          <div class="scr-bar">
+            <button class="btn primary" id="btnControl">Ambil kontrol</button>
+            <button class="btn" id="btnPause">Pause</button>
+            <button class="btn" id="btnShot">Screenshot</button>
+            <button class="btn" id="btnFull">Fullscreen</button>
+            <button class="btn danger" id="btnKill">Kill MT5</button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:13px;min-width:0">
+          <div class="panel">
+            <div class="phead"><h>ACTIVITY</h><span class="tab">live tail</span>
+              <div class="right"><span class="chip on">all</span><span class="chip">alerts</span><span class="chip">ctrl</span></div></div>
+            <div class="feed" id="feed"></div>
+          </div>
+
+          <div class="panel">
+            <div class="phead"><h>TAKE CONTROL</h><span class="tab">double-confirm</span></div>
+            <div class="ctrl">
+              <div class="target">Target
+                <select id="ctrlTarget"></select></div>
+              <div class="act" data-act="restart_mt5"><div class="bar" style="background:var(--warn)"></div>
+                <div><div class="nm">Restart terminal MT5</div><div class="ds">stop + start graceful, ~20s</div></div><div class="go">▸</div></div>
+              <div class="act" data-act="kill_process"><div class="bar" style="background:var(--crit)"></div>
+                <div><div class="nm">Kill proses</div><div class="ds">taskkill /F nama proses</div></div><div class="go">▸</div></div>
+              <div class="act" data-act="run_command"><div class="bar" style="background:var(--accent)"></div>
+                <div><div class="nm">Run command…</div><div class="ds">cmd /c — tercatat penuh</div></div><div class="go">▸</div></div>
+              <div class="warnbox"><span>⚠</span><span>dieksekusi di RDP sungguhan. setiap aksi tercatat &amp; butuh konfirmasi 2x.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="phead"><h>AGENTS</h><span class="tab" id="agentCount">0 hosts</span>
+          <div class="right"><span class="chip on">all</span><span class="chip">alerts</span><span class="chip">offline</span></div></div>
+        <table>
+          <thead><tr>
+            <th>Agent</th><th>Status</th><th>CPU</th><th>RAM</th><th>Disk</th>
+            <th>Terminal</th><th>MT5 login</th><th>Balance</th><th>Margin lvl</th><th>Last seen</th>
+          </tr></thead>
+          <tbody id="agentRows"></tbody>
+        </table>
+        <div class="foot-note"><span>heartbeat 30s · offline gate 90s · alert cooldown 30m</span><span>sqlite · 30d retention</span><span>ingest HMAC-SHA256</span></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h3 id="mTitle">Konfirmasi</h3>
+    <p id="mDesc">Aksi ini akan dieksekusi di server RDP. Klik konfirmasi untuk langkah kedua.</p>
+    <div class="cmdline" id="mCmd" style="display:none"></div>
+    <div class="row2">
+      <button class="btn" id="mCancel">Batal</button>
+      <button class="btn danger" id="mOk">Konfirmasi &amp; jalankan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtPct = v => (v == null || isNaN(v)) ? '—' : (+v).toFixed(1);
+const barCls = (v,w,c) => (v==null)?'faint':(+v>=c?'crit':(+v>=w?'warn':'ok'));
+const money = v => (v==null||isNaN(v)) ? '—' : (+v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+let agents = [], filterText = '', selected = null, paused = false;
+const $ = id => document.getElementById(id);
+const hist = [];
+
+async function refresh() {
+  try {
+    const res = await fetch('/api/agents', {cache:'no-store'});
+    agents = await res.json();
+    const now = Math.floor(Date.now()/1000);
+
+    const online = agents.filter(a => a.payload && (now - (a.last_ts||0)) <= 90);
+    const offline = agents.length - online.length;
+    const kOn = $('kpiOnline');
+    kOn.textContent = online.length;
+    kOn.className = 'v ' + (offline ? 'crit' : 'ok');
+    $('kpiTot').textContent = '/ ' + agents.length;
+    $('kpiOfflineD').textContent = offline ? offline + ' offline' : 'semua online';
+    const cpus = agents.filter(a=>a.payload&&a.payload.cpu!=null).map(a=>a.payload.cpu);
+    const avg = cpus.length ? cpus.reduce((s,v)=>s+v,0)/cpus.length : null;
+    $('kpiCpu').textContent = avg==null ? '—' : avg.toFixed(1)+'%';
+    const peak = cpus.length ? Math.max(...cpus) : null;
+    $('kpiCpuD').textContent = peak==null ? '—' : ('peak ' + peak.toFixed(1) + '%');
+    const mt = agents.reduce((s,a)=>s+((a.payload?.mt_terminals||[]).length),0);
+    const hostsMt = agents.filter(a=>(a.payload?.mt_terminals||[]).length>0).length;
+    $('kpiMt').innerHTML = mt + '<span style="color:var(--faint);font-size:13px"> / '+hostsMt+' host</span>';
+    $('kpiMtD').textContent = (agents.length-hostsMt) + ' host tanpa terminal';
+    let worst = null;
+    agents.forEach(a => { const ag = now-(a.last_ts||0); if (ag>90 && (!worst||ag>worst.age)) worst={age:ag,name:a.name}; });
+    $('kpiStale').textContent = worst ? Math.floor(worst.age/60)+'m' : '0s';
+    $('kpiStale').className = 'v ' + (worst ? 'crit' : 'ok');
+    let risky = [];
+    agents.forEach(a => (a.payload?.mt5_accounts||[]).forEach(x => {
+      const ml = +x.margin_level; if (ml && ml < 120) risky.push(x.login); }));
+    $('kpiMargin').textContent = risky.length || '—';
+    $('kpiMargin').className = 'v ' + (risky.length ? 'crit' : 'ok');
+    $('kpiMarginD').textContent = risky.length ? ('login ' + risky.join(', ')) : 'aman';
+
+    hist.push(avg==null?0:Math.min(100,avg)); if (hist.length>14) hist.shift();
+    $('kpiSpark').innerHTML = hist.map(v=>`<i style="height:${Math.max(4,v)}%"></i>`).join('');
+
+    if (!$('screenSel').options.length) {
+      agents.forEach(a => {
+        $('screenSel').add(new Option(a.name+' ('+a.agent_id+')', a.agent_id));
+        $('ctrlTarget').add(new Option(a.name+' · '+a.agent_id, a.agent_id));
+      });
+      if (agents.length) { selected = agents[0].agent_id; $('screenSel').value=selected; $('ctrlTarget').value=selected; }
+    }
+
+    $('agentCount').textContent = agents.length + ' hosts';
+    const q = filterText.toLowerCase();
+    $('agentRows').innerHTML = agents.filter(a =>
+      !q || a.agent_id.toLowerCase().includes(q) || (a.name||'').toLowerCase().includes(q)
+    ).map(a => {
+      const p = a.payload || {};
+      const age = now - (a.last_ts||0);
+      const off = !p || age > 90;
+      const terms = p.mt_terminals || [];
+      const acc = (p.mt5_accounts || [])[0] || {};
+      const ml = acc.margin_level;
+      return `<tr data-id="${esc(a.agent_id)}" class="${selected===a.agent_id?'sel':''}">
+        <td class="n">${esc(a.agent_id)}</td>
+        <td>${off? '<span class="st crit"><i></i>offline</span>':'<span class="st ok"><i></i>live</span>'}</td>
+        <td><span class="mini"><i style="width:${Math.min(100,p.cpu||0)}%;background:var(--${barCls(p.cpu,85,95)})"></i></span><span class="num">${fmtPct(p.cpu)}</span></td>
+        <td><span class="mini"><i style="width:${Math.min(100,p.mem||0)}%;background:var(--${barCls(p.mem,85,95)})"></i></span><span class="num">${fmtPct(p.mem)}</span></td>
+        <td><span class="mini"><i style="width:${Math.min(100,p.disk||0)}%;background:var(--${barCls(p.disk,90,97)})"></i></span><span class="num">${fmtPct(p.disk)}</span></td>
+        <td>${terms.length ? terms.map(t=>`<span class="mtag">${esc(t.kind)}</span>`).join(' ') : '<span class="mtag bad">none</span>'}</td>
+        <td class="n">${esc(acc.login) || '—'}</td>
+        <td class="num">${money(acc.balance)}</td>
+        <td class="num" style="color:${ml!=null&&ml<120?'var(--crit)':'var(--ok)'}">${ml!=null?(+ml).toFixed(1)+'%':'—'}</td>
+        <td class="num" style="color:${off?'var(--crit)':'var(--dim)'}">${age<0?'now':(age<60?Math.round(age)+'s ago':Math.floor(age/60)+'m ago')}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="10" style="color:var(--faint)">no agents match filter</td></tr>';
+
+    $('lastupd').textContent = new Date().toLocaleTimeString('id-ID');
+  } catch (e) {
+    $('lastupd').textContent = 'error';
+  }
+  refreshEvents();
+}
+
+async function refreshEvents() {
+  try {
+    const res = await fetch('/api/events?limit=40', {cache:'no-store'});
+    const evs = await res.json();
+    $('feed').innerHTML = evs.map(e => {
+      const d = new Date(e.ts*1000);
+      const t = d.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      const kind = e.action.startsWith('alert') ? (e.action.includes('clear')?'ok':'alert')
+                  : (e.action.startsWith('command') ? 'ctrl' : 'warn');
+      return `<div class="ev dot-${kind}"><span class="t">${t}</span>
+        <span><span class="a">${esc(e.agent_id||e.actor)}</span> <span class="m">${esc(e.detail)}</span></span></div>`;
+    }).join('') || '<div class="ev"><span class="t">—</span><span class="m" style="color:var(--faint)">no events yet</span></div>';
+  } catch(e) {}
+}
+
+let screenTimer = null;
+let screenMs    = 2500;   // raised to 700 while controlMode is on (see startScreen)
+function startScreen() {
+  if (screenTimer) clearInterval(screenTimer);
+  const tick = () => {
+    if (paused) return;
+    const id = $('screenSel').value;
+    if (!id) return;
+    const img = $('screenImg');
+    img.classList.remove('ph');
+    img.src = '/api/screenshots/'+encodeURIComponent(id)+'/latest.jpg?cb='+Date.now();
+    $('osdL').textContent = id + ' · live frame';
+    // frame rate follows the control state: fast while you are driving,
+    // otherwise a slow steady poll to save bandwidth + CPU on the RDP box
+    const want = controlMode ? 700 : 2500;
+    if (screenMs !== want) { screenMs = want; clearInterval(screenTimer); screenTimer = setInterval(tick, want); }
+  };
+  tick();
+  screenTimer = setInterval(tick, screenMs);
+}
+$('screenImg').addEventListener('load', () => {
+  $('osdR').textContent = '● LIVE ' + new Date().toLocaleTimeString('id-ID');
+});
+$('screenImg').addEventListener('error', () => {
+  $('osdL').textContent = 'no frame yet (agent belum kirim screenshot)';
+});
+$('screenSel').addEventListener('change', startScreen);
+$('btnPause').addEventListener('click', () => {
+  paused = !paused;
+  $('btnPause').textContent = paused ? 'Resume' : 'Pause';
+});
+$('btnFull').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.querySelector('.screen-wrap').requestFullscreen?.();
+});
+$('btnShot').addEventListener('click', () => queueAction('screenshot'));
+$('btnKill').addEventListener('click', () => queueAction('kill_process', {name:'terminal64.exe'}));
+let controlMode = false;
+$('btnControl').addEventListener('click', async () => {
+  const id = $('screenSel').value;
+  if (!id) return;
+  if (controlMode) {
+    // release
+    try { await fetch('/api/control/release/'+encodeURIComponent(id), {method:'POST'}); }
+    catch(e) {}
+    setControl(false);
+    return;
+  }
+  try {
+    const r = await fetch('/api/control/take/'+encodeURIComponent(id), {method:'POST'});
+    const j = await r.json();
+    if (!r.ok) { alert(j.error || 'take failed (status '+r.status+')'); return; }
+    setControl(true);
+  } catch (e) { alert('network error'); }
+});
+
+function setControl(on) {
+  controlMode = on;
+  $('btnControl').textContent = on ? 'Lepas kontrol' : 'Ambil kontrol';
+  $('btnControl').classList.toggle('danger', on);
+  $('btnControl').classList.toggle('primary', !on);
+  $('osdR').textContent = on ? '● CONTROL ACTIVE' : ('● LIVE ' + new Date().toLocaleTimeString('id-ID'));
+  $('btnPause').disabled = on;
+  if (on && !paused) { paused = true; $('btnPause').textContent = 'Resume'; }
+}
+function screenPos(ev) {
+  const img = $('screenImg');
+  const r = img.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) return null;
+  const sx = img.naturalWidth || 1920, sy = img.naturalHeight || 1080;
+  return { x: Math.round((ev.clientX - r.left) / r.width * sx),
+           y: Math.round((ev.clientY - r.top) / r.height * sy) };
+}
+let inputBuf = [], inputFlushTimer = null;
+// short coalescing window: batches rapid mousemove bursts into one POST while
+// still arriving at the agent inside one poll cycle (~300ms)
+function bufferInput(ev) {
+  inputBuf.push(ev);
+  if (!inputFlushTimer) inputFlushTimer = setTimeout(flushInput, 25);
+}
+async function flushInput() {
+  inputFlushTimer = null;
+  if (!inputBuf.length) return;
+  const id = $('screenSel').value;
+  const batch = inputBuf; inputBuf = [];
+  try {
+    const r = await fetch('/api/input/'+encodeURIComponent(id), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({events: batch})});
+    if (!r.ok) { const j = await r.json(); if (j.error && j.error.includes('controlled')) setControl(false); }
+  } catch(e) {}
+}
+$('screenImg').addEventListener('mousedown', e => {
+  if (!controlMode) return;
+  const p = screenPos(e); if (!p) return;
+  const b = e.button === 2 ? 'right' : (e.button === 1 ? 'middle' : 'left');
+  bufferInput({t:'down', b});
+  e.preventDefault();
+});
+$('screenImg').addEventListener('mouseup', e => {
+  if (!controlMode) return;
+  const b = e.button === 2 ? 'right' : (e.button === 1 ? 'middle' : 'left');
+  bufferInput({t:'up', b});
+});
+$('screenImg').addEventListener('mousemove', e => {
+  if (!controlMode) return;
+  const p = screenPos(e); if (!p) return;
+  bufferInput({t:'move', x:p.x, y:p.y});
+});
+$('screenImg').addEventListener('contextmenu', e => { if (controlMode) e.preventDefault(); });
+$('screenImg').addEventListener('wheel', e => {
+  if (!controlMode) return;
+  bufferInput({t:'scroll', x:0, y:-e.deltaY});
+  e.preventDefault();
+}, {passive:false});
+document.addEventListener('keydown', e => {
+  if (!controlMode) return;
+  const k = e.key;
+  if (k.length > 1 && !['Enter','Escape','Tab','Backspace','Delete','Insert','Home','End','PageUp','PageDown','ArrowLeft','ArrowUp','ArrowRight','ArrowDown','Shift','Control','Alt',' ','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'].includes(k)) return;
+  const name = {'ArrowLeft':'Left','ArrowUp':'Up','ArrowRight':'Right','ArrowDown':'Down',' ':'Space','Control':'Control','Shift':'Shift','Alt':'Alt'}[k] || k;
+  bufferInput({t:'key', k:name, down:true});
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => {
+  if (!controlMode) return;
+  const k = e.key;
+  const name = {'ArrowLeft':'Left','ArrowUp':'Up','ArrowRight':'Right','ArrowDown':'Down',' ':'Space'}[k] || k;
+  bufferInput({t:'key', k:name, down:false});
+});
+window.addEventListener('beforeunload', () => {
+  const id = $('screenSel').value;
+  if (controlMode && id) navigator.sendBeacon('/api/control/release/'+encodeURIComponent(id));
+});
+
+let pendingAction = null, pendingArgs = {};
+function queueAction(action, args) {
+  pendingAction = action; pendingArgs = args||{};
+  const target = $('ctrlTarget').value;
+  const labels = {restart_mt5:'Restart terminal MT5', kill_process:'Kill proses', run_command:'Run command', screenshot:'Screenshot', reboot:'Reboot Windows'};
+  $('mTitle').textContent = 'Konfirmasi: ' + (labels[action]||action);
+  $('mDesc').textContent = 'Target: ' + target + '. Aksi dieksekusi di RDP sungguhan setelah kamu konfirmasi.';
+  if (action === 'run_command') {
+    const cmd = prompt('command yang dijalankan di RDP (cmd /c …):');
+    if (!cmd) return;
+    pendingArgs = {cmd};
+    $('mCmd').style.display='block'; $('mCmd').textContent = 'cmd /c ' + cmd;
+  } else {
+    $('mCmd').style.display='none';
+    $('mCmd').textContent = action + (Object.keys(pendingArgs).length? ' '+JSON.stringify(pendingArgs):'');
+  }
+  $('modal').classList.add('on');
+}
+document.querySelectorAll('.act').forEach(el => el.addEventListener('click', () => queueAction(el.dataset.act)));
+$('mCancel').addEventListener('click', () => $('modal').classList.remove('on'));
+$('mOk').addEventListener('click', async () => {
+  $('modal').classList.remove('on');
+  const target = $('ctrlTarget').value;
+  try {
+    const r1 = await fetch('/api/control/queue', {method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({agent_id: target, action: pendingAction, args: pendingArgs})});
+    const j1 = await r1.json();
+    if (!r1.ok) { alert('queue failed: '+(j1.error||r1.status)); return; }
+    const r2 = await fetch('/api/control/confirm', {method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id: j1.id})});
+    const j2 = await r2.json();
+    alert(r2.ok ? 'Terkirim & dikonfirmasi. Agent akan mengeksekusi ' + pendingAction + ' (id '+j1.id+').'
+                : 'confirm failed: '+(j2.error||r2.status));
+    refreshEvents();
+  } catch (e) { alert('network error'); }
+});
+
+$('filter').addEventListener('input', e => { filterText = e.target.value; refresh(); });
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== $('filter')) { e.preventDefault(); $('filter').focus(); }
+});
+$('agentRows').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-id]');
+  if (tr) { selected = tr.dataset.id; $('screenSel').value = selected; $('ctrlTarget').value = selected; startScreen(); refresh(); }
+});
+
+refresh();
+setInterval(refresh, 5000);
+setTimeout(startScreen, 600);
+</script>
+</body>
+</html>

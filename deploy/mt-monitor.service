@@ -1,0 +1,15 @@
+[Unit]
+Description=MT Server Monitor — web dashboard + ingest API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mt-monitor/server
+ExecStart=/usr/bin/python3 /opt/mt-monitor/server/app.py
+Environment=PORT=8080
+# Environment=TELEGRAM_BOT_TOKEN=...   # better: put in /opt/mt-monitor/server/.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

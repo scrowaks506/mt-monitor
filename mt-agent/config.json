@@ -1,0 +1,10 @@
+{
+  "agent_id": "rdp-01",
+  "name": "RDP Trader 01",
+  "server_url": "https://MONITOR-SERVER-IP:8080",
+  "key": "CHANGE-ME-MUST-MATCH-MTMON_AGENT_KEYS",
+  "drive": "C:",
+  "interval_sec": 30,
+  "screenshot_sec": 4,
+  "jpeg_quality": 55
+}

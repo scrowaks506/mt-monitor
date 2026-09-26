@@ -1,0 +1,13 @@
+[Unit]
+Description=MT Server Monitor — alert evaluation loop
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mt-monitor/server
+ExecStart=/usr/bin/python3 /opt/mt-monitor/server/alerts.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

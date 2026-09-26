@@ -1,0 +1,23 @@
+[Unit]
+Description=MT Server Monitor (HTTPS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/mt-monitor/server
+EnvironmentFile=/root/mt-monitor/.env
+ExecStart=/usr/bin/python3 app.py
+Restart=always
+RestartSec=3
+StandardOutput=append:/root/mt-monitor/data/server.log
+StandardError=append:/root/mt-monitor/data/server.log
+
+# hardening: the monitor only needs its own data dir + network
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/root/mt-monitor/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+# never ship secrets
+.env
+.env.*
+!.env.example
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# os / ide junk
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+.vscode/
+
+# screenshots are runtime data, not source
+server/static/screenshots/
